@@ -14,6 +14,7 @@
 
 #include "tensorstore/kvstore/s3/credentials/ec2_credential_provider.h"
 
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -27,7 +28,6 @@
 #include "absl/strings/str_split.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
-#include <nlohmann/json.hpp>
 #include "tensorstore/internal/env.h"
 #include "tensorstore/internal/http/http_request.h"
 #include "tensorstore/internal/http/http_response.h"
@@ -120,23 +120,28 @@ inline constexpr auto EC2CredentialsResponseBinder = jb::Object(
 Result<absl::Cord> GetEC2ApiToken(std::string_view endpoint,
                                   internal_http::HttpTransport& transport) {
   // Obtain Metadata server API tokens with a TTL of 21600 seconds
-  const std::string token_url = tensorstore::StrCat(endpoint, "/latest/api/token");
-  const std::string request_header = "x-aws-ec2-metadata-token-ttl-seconds: 21600";
+  const std::string token_url =
+      tensorstore::StrCat(endpoint, "/latest/api/token");
+  const std::string request_header =
+      "x-aws-ec2-metadata-token-ttl-seconds: 21600";
   const auto request_options = internal_http::IssueRequestOptions()
                                    .SetRequestTimeout(absl::InfiniteDuration())
                                    .SetConnectTimeout(kConnectTimeout);
 
   for (const char* method : {"POST", "PUT"}) {
     auto token_request = HttpRequestBuilder(method, token_url)
-                       .AddHeader(request_header)
-                       .BuildRequest();
+                             .AddHeader(request_header)
+                             .BuildRequest();
+
+    ABSL_LOG_IF(ERROR, true /*s3_logging.Level(1)*/)
+        << "TokenRequest " << token_url;
 
     TENSORSTORE_ASSIGN_OR_RETURN(
         auto token_response,
         transport.IssueRequest(token_request, request_options).result());
 
-    if (method == "POST" &&
-        (token_response.status_code == 405 || token_response.status_code == 401)) {
+    if (strcmp(method, "POST") == 0 && (token_response.status_code == 405 ||
+                                        token_response.status_code == 401)) {
       continue;  // Try PUT for IMDSv2
     }
 
@@ -147,7 +152,8 @@ Result<absl::Cord> GetEC2ApiToken(std::string_view endpoint,
     return std::move(token_response.payload);
   }
 
-  return absl::NotFoundError("Failed to obtain EC2 API token from either IMDSv1 or IMDSv2");
+  return absl::NotFoundError(
+      "Failed to obtain EC2 API token from either IMDSv1 or IMDSv2");
 }
 
 }  // namespace

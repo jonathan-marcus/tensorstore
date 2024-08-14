@@ -70,6 +70,7 @@ void UpdateLoggingLevelConfig(std::string_view input,
   auto& levels = config.levels;
 
   // Split input into name=value pairs.
+  ABSL_LOG(INFO) << "UpdateLoggingLevelConfig=" << input;
   for (std::string_view flag : absl::StrSplit(input, ',', absl::SkipEmpty())) {
     const size_t eq = flag.rfind('=');
     if (eq == flag.npos) {
