@@ -359,7 +359,8 @@ setuptools.setup(
     packages=setuptools.find_packages('python'),
     package_dir={'': 'python'},
     ext_modules=[setuptools.Extension('tensorstore/_tensorstore', sources=[])],
-    setup_requires=['setuptools_scm>=8.1.0'],
+    setup_requires=['setuptools_scm>=8.0.0'],
+    version="0.1.65+jonathancustom",
     cmdclass={
         'sdist': SdistCommand,
         'build': BuildCommand,
